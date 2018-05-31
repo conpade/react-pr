@@ -136,7 +136,7 @@ class Test extends PureComponent{
 
       <Button onClick={()=>{
         this.setState({name:this.state.name ++ });
-      }} >change props cannot be success</Button>
+      }} >change props can't be success</Button>
     </div>
   }
 }
@@ -176,4 +176,544 @@ class Textarea extends PureComponent{
 }
 
 export default Textarea;
+```
+
+
+### system modal : EditFilterForm ###
+
+```js
+import React, { PureComponent,Fragment } from 'react';
+import {EditForm,BlockHeader,Panel} from '@didi/zen-bc';
+import moment from 'moment';
+import apiSvc from '../../services/apiSvc';
+import { Layout, Table, Tabs, Button, Modal, message } from 'antd';
+import { withRouter,Link } from 'react-router-dom';
+import AddFilterForm from './modals/AddFilterForm';
+import EditFilterForm from './modals/EditFilterForm';
+const TabPane = Tabs.TabPane;
+const Content = Layout.Content;
+
+
+class Edit extends PureComponent{
+  constructor(props){
+    super(props);
+    let params = new URLSearchParams(this.props.history.location.search);
+    this.systemId = params.get('systemId');
+  }
+
+  state = {
+    propertyList : [],
+    typeList: [],
+    filterList:[],
+    filterIdList:[],
+
+    addModalVisible:false,
+    selectedFilterIds:[],
+
+    editModalVisible:false,
+    editFilterId:0,
+    filterDetailData:[],
+    loadEditFactor:0,
+
+    filterPropertyValueList : [],
+
+    delModalVisible:false,
+    delFilterId:0,
+
+  }
+
+  componentDidMount() {
+    this.setTabData('filter');
+  }
+
+  setTabData = (activeTabKey)=>{
+    const systemId = this.systemId;
+
+    apiSvc.fetchSystemDetail({
+      systemId
+    }).then(res => {
+      if (res.errno === 0) {
+        let {...systemData} = res.data;
+
+        this.form.setFieldsValue({
+          ...systemData
+        });
+      }
+    });
+
+    this.loadSystemFilterList();
+
+  }
+
+  loadSystemFilterList = ()=>{
+    const systemId = this.systemId;
+    apiSvc.fetchSystemFilterList({
+      systemId
+    }).then(res => {
+      if (res.errno === 0) {
+        let filterIdList = [];
+        res.data.items.forEach(function(item){
+          filterIdList.push(item.filterId);
+        });
+        this.setState({
+          filterIdList: filterIdList,
+          filterList: res.data.items});
+      }
+    });
+  }
+
+  onOk = (result) => {
+    console.log(result);
+    apiSvc.editSystemFilter(result).then(res => {
+      if(res.errno === 0){
+        message.success('编辑成功！');
+        this.jumpTo('system-list');
+      }else{
+        message.error(res.errmsg);
+      }
+    })
+  }
+
+  jumpTo = (path) => {
+    const { history } = this.props;
+    history.push(path);
+  }
+
+  /** ******************************** modal ********************************/
+
+  handleAddModalCancel = () => {
+    this.hideAddModal();
+  }
+
+  hideAddModal = () => {
+    this.setState({
+      addModalVisible:false
+    });
+  }
+
+  hideEditModal = () => {
+    this.setState({
+      editModalVisible:false
+    });
+  }
+
+  handleEditModalCancel = () => {
+    this.setState({
+      editModalVisible:false
+    });
+  }
+
+  showAddModal = () => {
+    this.setState({
+      addModalVisible:true
+    });
+  }
+
+  showEditModal = (systemId,filterId) => {
+    const fid = filterId;
+    this.setState({
+      editModalVisible:true,
+      editFilterId:fid,
+    });
+  }
+
+  setSelectedFilterKeysFunction = (selectedFilterIds)=>{
+    this.setState({
+      selectedFilterIds
+    });
+  }
+
+  setFilterValueFunction = (filterPropertyValueList)=>{
+    this.setState({
+      filterPropertyValueList
+    });
+  }
+
+  handleAddModalOk =() =>{
+    apiSvc.addFilter2System({systemId:this.systemId, filterId: this.state.selectedFilterIds}).then(()=>{this.loadSystemFilterList();});
+    this.hideAddModal();
+  }
+
+  handleEditModalOk=()=>{
+    this.setState({
+      loadEditFactor:Math.random()
+    });
+    apiSvc.editSystemFilter({systemId:this.systemId, filterId: this.state.editFilterId, propertyList:this.state.filterPropertyValueList});
+    this.hideEditModal();
+  }
+
+  handleDelModalOk =() =>{
+    apiSvc.delSystemFilter({systemId:this.systemId, filterId: this.state.delFilterId}).then(()=>{this.loadSystemFilterList();});
+    this.hideDelModal();
+  }
+
+  showDelModal = (systemId, filterId) =>{
+    this.setState({
+      delFilterId:filterId,
+      delModalVisible:true,
+    });
+  }
+
+  hideDelModal = () => {
+    this.setState({
+      delModalVisible:false
+    });
+  }
+
+  handleDelModalCancel=()=>{
+    this.hideDelModal();
+  }
+
+  /** ******************************** end of modal ********************************/
+
+  render(){
+
+    let columns = [
+      {
+        'id': 'systemId',
+        'cardTitle': '基本信息',
+        'label': '系统ID',
+      },
+
+      {
+        'id': 'name',
+        'label': '名称',
+      },
+
+      {
+        'id': 'description',
+        'label': '说明',
+        'type': 'text',
+      },
+
+    ];
+
+    const filterColumns = [
+      {
+        title: '名称',
+        dataIndex: 'name'
+      },
+      {
+        title: '描述',
+        dataIndex: 'description'
+      },
+      {
+        title: '创建时间',
+        dataIndex: 'createTime',
+        render: (time) => moment(time).format('YYYY-MM-DD HH:mm:ss'),
+      },
+
+      {
+        title: '操作',
+        dataIndex: 'actions',
+        render: (text,record) => {
+          return (
+            <span>
+              <Button
+                key='edit'
+                onClick={()=>{this.showEditModal(this.systemId, record.filterId)}}>
+
+                编辑
+              </Button>
+              &nbsp;&nbsp;
+              <Button
+                key='delete'
+                onClick={()=>{this.showDelModal(this.systemId, record.filterId)}}>
+
+                删除
+              </Button>
+            </span>
+
+          );
+        }
+      },
+    ];
+
+    return (
+      <Content>
+        <BlockHeader title="system编辑" />
+        <Tabs
+          defaultActiveKey="system"
+        >
+          <TabPane tab="system" key="system">
+            <Panel className="outside-panel-wrapper">
+              <EditForm
+                editData={columns}
+                onOk={this.onOk}
+                ref={(node) => {this.form = node && node.formRef.props.form;}}
+              />
+            </Panel>
+          </TabPane>
+
+          <TabPane tab="filter" key="filter">
+            <Panel className="outside-panel-wrapper">
+
+              <Fragment>
+                <BlockHeader
+                  title=""
+                  buttonData={[{
+                    text: '添加filter',
+                    type: 'primary',
+                    icon: 'plus',
+                    onClick: this.showAddModal
+                  }]}
+                />
+              </Fragment>
+              <Panel>
+                <Table
+                  columns={filterColumns}
+                  bordered
+                  loading={this.state.loading}
+                  dataSource={this.state.filterList || []}
+                  rowKey="filterId"
+                  pagination={false}
+                />
+              </Panel>
+            </Panel>
+          </TabPane>
+
+        </Tabs>
+
+        <Modal
+          visible={this.state.addModalVisible}
+          title="添加Filter"
+          onCancel={this.handleAddModalCancel}
+          onOk={this.handleAddModalOk}
+          width={"60%"}
+        >
+          <AddFilterForm
+            setSelectedFilterKeysFunction={this.setSelectedFilterKeysFunction}
+            disabledFilterIdList = {this.state.filterIdList}
+            ref={(node) => {this.addFilterForm = node;}}
+          />
+        </Modal>
+
+        <Modal
+          visible={this.state.editModalVisible}
+          title="编辑Filter"
+          onCancel={this.handleEditModalCancel}
+          onOk={this.handleEditModalOk}
+          width={"60%"}
+        >
+          <EditFilterForm
+            setFilterValueFunction={this.setFilterValueFunction}
+            ref={(node) => {this.editFilterForm = node;}}
+            filterId = {this.state.editFilterId}
+            systemId = {this.systemId}
+            loadEditFactor = {this.state.loadEditFactor}
+          />
+        </Modal>
+
+        <Modal
+          visible={this.state.delModalVisible}
+          title="删除filter"
+          onCancel={this.handleDelModalCancel}
+          onOk={this.handleDelModalOk}
+        >
+          你确定要删除filter {this.state.delFilterId} 吗？
+        </Modal>
+      </Content>
+    );
+  }
+}
+
+export default Edit;
+```
+
+### system modal : EditFilterForm ###
+
+```js
+import { inject, observer } from 'mobx-react';
+import { computed } from 'mobx';
+import { withRouter,Link } from 'react-router-dom';
+import React, { Component,PureComponent,Fragment } from 'react';
+import { ListFilter, BlockHeader, Panel, EditForm } from '@didi/zen-bc';
+import apiSvc from '../../../services/apiSvc';
+import { Table, message, Input } from 'antd';
+
+class EditFilterForm extends PureComponent {
+
+  state = {
+    systemId:0,
+    filterPropertyValueList : [],
+    propertyList: [],
+    filterId:0,
+  }
+
+  static SYSTEM_DEFAULT = '默认值(system级别，填写该值会覆盖filter中配置的默认值)'
+
+  componentWillReceiveProps(nextProps) {
+    console.log('componentWillReceiveProps',nextProps.filterId,this.props.loadEditFactor,nextProps.loadEditFactor);
+    if(nextProps.loadEditFactor !== this.props.loadEditFactor || nextProps.filterId != this.state.filterId){
+      this.setState({
+        filterId: nextProps.filterId
+      });
+      this.loadFilter(this.state.systemId,nextProps.filterId);
+    }
+  }
+
+  componentDidMount() {
+
+    const systemId = this.props.systemId;
+    const filterId = this.props.filterId;
+
+    this.setState({systemId});
+
+    this.loadFilter(systemId,filterId);
+
+  }
+
+  loadFilter =(systemId, filterId)=>{
+    console.log('loadFilter');
+
+    apiSvc.fetchSystemFilterDetail({
+      systemId : systemId,
+      filterId : filterId,
+    }).then(res => {
+      if(res.errno === 0){
+        let {propertyList,...otherData} = res.data;
+
+        this.form.setFieldsValue({
+          ...otherData,propertyList
+        });
+
+        let targetPropertyList = [];
+
+
+        propertyList.forEach(function(item){
+          let targetProperty = [];
+
+          // targetProperty.push({key:'proper',value:item.filterPropertyId});
+          targetProperty.push({key:'名称',value:item.name});
+          targetProperty.push({key:'默认值（filter级别）',value:item.defaultValue});
+          targetProperty.push({key:EditFilterForm.SYSTEM_DEFAULT,value:item.value,propertyId:item.filterPropertyId});
+          targetProperty.push({key:'是否必填',value:item.isRequired});
+
+          targetPropertyList.push(targetProperty);
+
+        });
+
+        this.setState({
+          propertyList:targetPropertyList
+        });
+
+        // preset
+        let filterPropertyValueList = [];
+        targetPropertyList.forEach((item)=>{
+          item.forEach((item) => {
+            if(item.key === EditFilterForm.SYSTEM_DEFAULT){
+              filterPropertyValueList.push({propertyId:item.propertyId,value:item.value,change:false});
+            }
+          });
+        });
+
+        this.setState({filterPropertyValueList});
+        this.props.setFilterValueFunction(filterPropertyValueList)
+
+      }
+    });
+  }
+
+  render(){
+    const propertyColumns = [
+      {
+        title: "属性",
+        dataIndex: 'key'
+      },
+      {
+        title: "属性值",
+        dataIndex: 'value',
+        render: (text, record) => {
+
+          if(record.key === EditFilterForm.SYSTEM_DEFAULT){
+
+            return <Input name={record.propertyId} defaultValue={text} onChange={ (e)=>{
+
+              let key = e.target.name;
+              let value = e.target.value;
+
+              let filterPropertyValueList = this.state.filterPropertyValueList.slice();
+
+              console.log('start change',filterPropertyValueList, key, value);
+
+              filterPropertyValueList = filterPropertyValueList.map(function(item, index){
+                if(item.propertyId === Number(key) ){
+                  console.log('enter');
+                  return {propertyId:item.propertyId, value: value, change:true};
+                }
+                else
+                  return item;
+              });
+
+
+              console.log('change result:',filterPropertyValueList);
+              this.setState({filterPropertyValueList});
+              this.props.setFilterValueFunction(filterPropertyValueList)
+
+
+            } } />
+          }else{
+            return text;
+          }
+        }
+      },
+    ];
+
+
+    const {propertyList} = this.state;
+    let propertyListTable = propertyList.map((item, index) =>
+    {
+      let tableKey = index;
+      // item.forEach(function(item, index){
+      //   if(item['key'] === 'propertyId'){
+      //     tableKey = item['value'];
+      //   }
+      // });
+
+
+      return <Table
+        columns={propertyColumns}
+        bordered
+        style={{marginTop:'10px'}}
+        dataSource={item || []}
+        rowKey="key"
+        key={tableKey}
+        pagination={false}
+      />
+    }
+    );
+
+
+    let data = [
+      {
+        label: '过滤器名称',
+        id: 'name'
+      },
+      {
+        label: '描述',
+        id: 'description'
+      },
+      {
+        label: '过滤器类型',
+        id: 'type'
+      },
+      {
+        label: '属性',
+        id: 'propertyList',
+        type: 'custom',
+        content: <div>{propertyListTable}</div>
+      }
+    ];
+
+    return (<Panel className="outside-panel-wrapper">
+      <EditForm
+        editData={data}
+        buttonData={[]}
+        ref={(node) => {this.form = node && node.formRef.props.form;}}
+      />
+    </Panel>);
+  }
+}
+
+export default EditFilterForm;
 ```
