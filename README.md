@@ -136,7 +136,7 @@ class Test extends PureComponent{
 
       <Button onClick={()=>{
         this.setState({name:this.state.name ++ });
-      }} >change props can't be success</Button>
+      }} >change props cannot be success</Button>
     </div>
   }
 }
@@ -178,6 +178,93 @@ class Textarea extends PureComponent{
 export default Textarea;
 ```
 
+
+
+
+
+
+### system : List ###
+
+```js
+
+import { inject, observer } from 'mobx-react';
+import { computed } from 'mobx';
+import { withRouter,Link } from 'react-router-dom';
+import React, { Component,Fragment } from 'react';
+import { ListFilter, BlockHeader, Panel, EditForm } from '@didi/zen-bc';
+import apiSvc from '../../services/apiSvc';
+import { Table, message } from 'antd';
+import moment from 'moment';
+
+import ListTable from '../../components/ListTable';
+
+class List extends Component {
+
+  state = {
+    filterData : []
+  };
+
+  columns = [
+    {
+      title: 'ID',
+      dataIndex: 'systemId'
+    },
+    {
+      title: '名称',
+      dataIndex: 'name'
+    },
+    {
+      title: '描述',
+      dataIndex: 'description'
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updateTime',
+      render: (createTime) => moment(createTime).format('YYYY-MM-DD HH:mm:ss'),
+    },
+    {
+      title: '操作',
+      dataIndex: 'actions',
+      render: (text,record) => {
+        const actions = Array.isArray(text) && text.map((action, index) => {
+            const {type,label} = action;
+            if(type === 'DETAIL'){
+              return <Link style={{marginRight:'10px'}} key={index} to={`system-detail?systemId=${record.systemId}`}>{label}</Link>
+            }
+            else if(type === 'UPDATE'){
+              return <Link style={{marginRight:'10px'}} key={index} to={`system-edit?systemId=${record.systemId}`}>{label}</Link>
+            }
+          });
+        return (
+          <span >
+            {actions}
+          </span>
+        );
+      }
+    },
+  ];
+
+  getDataFunction = function(current, pageSize, search){
+    return apiSvc.fetchSystemList({
+      current: current,
+      pageSize,
+      ...search
+    })
+  };
+
+
+
+  render(){
+    return (
+      <ListTable title="System" filterData={false} columns={this.columns}
+                 getDataFunction={this.getDataFunction}
+      />
+    );
+  }
+}
+
+export default List;
+```
 
 ### system modal : EditFilterForm ###
 
