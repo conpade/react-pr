@@ -136,7 +136,7 @@ class Test extends PureComponent{
 
       <Button onClick={()=>{
         this.setState({name:this.state.name ++ });
-      }} >change props can't be success</Button>
+      }} >change props cannot be success</Button>
     </div>
   }
 }
